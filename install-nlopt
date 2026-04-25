@@ -1,0 +1,65 @@
+#!/bin/python3
+#-----------------------------------------------------------------------
+import argparse
+import os
+import sys
+import subprocess
+#-----------------------------------------------------------------------
+if __name__ == "__main__":
+#-----------------------------------------------------------------------
+    dir_ = os.path.dirname(os.path.abspath(__file__))
+    default_dir = os.path.join(dir_, "build")
+#-----------------------------------------------------------------------
+    parser = argparse.ArgumentParser(description="Install Script")
+    parser.add_argument("-b", "--build_dir", default=default_dir, help="Install binary in 'PREFIX/install'")
+    parser.add_argument("-m", "--machine", default="gnu", help="Sets compilers")
+    parser.add_argument("-n", "--nproc", default="8", help="nprocs make can spawn")
+#-----------------------------------------------------------------------
+    args = parser.parse_args()
+#-----------------------------------------------------------------------
+    machine = args.machine
+    install_dir = os.path.join(args.build_dir, "install")
+#-----------------------------------------------------------------------
+    FC = os.environ.get("FC")
+    CC = os.environ.get("CC")
+    CXX = os.environ.get("CXX")
+#-----------------------------------------------------------------------
+# flags for different machines
+#-----------------------------------------------------------------------
+    if machine == "gnu":
+        FC  = FC  or "gfortran"
+        CC  = CC  or "gcc"
+        CXX = CXX or "g++"
+#-----------------------------------------------------------------------
+    elif machine == "cray":
+        FC  = FC  or "ftn"
+        CC  = CC  or "gcc"
+        CXX = CXX or "g++"
+#-----------------------------------------------------------------------
+    elif machine == "intel":
+        FC  = FC  or "ifx"
+        CC  = CC  or "gcc"
+        CXX = CXX or "g++"
+#-----------------------------------------------------------------------
+    else:
+        print(f"ERROR: unknown machine \"{machine}\"")
+        sys.exit(1)
+#-----------------------------------------------------------------------
+# Build with CMake
+    cmake_cmd = [
+        "cmake", "-S", ".", "-B", args.build_dir,
+        f"-DCMAKE_INSTALL_PREFIX={install_dir}",
+        f"-DCMAKE_Fortran_COMPILER={FC}",
+        f"-DCMAKE_C_COMPILER={CC}",
+        f"-DCMAKE_CXX_COMPILER={CXX}",
+        f"-DPython_EXECUTABLE=python3"
+    ]
+    build_cmd=["make","install","-C",args.build_dir, "-j", args.nproc]
+#-----------------------------------------------------------------------
+    try:
+        subprocess.run(cmake_cmd, check=True)
+        subprocess.run(build_cmd, check=True)
+    except subprocess.CalledProcessError as e:
+        print(f"CMake failed with error: {e}")
+        sys.exit(1)
+#-----------------------------------------------------------------------
